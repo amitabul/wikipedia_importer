@@ -14,11 +14,13 @@ from bs4 import BeautifulSoup
 import WikiExtractor
 
 import HTMLParser    
+import MySQLdb
 
-page_count = 0
+db = None
+db_cursor = None
 
 
-
+#
 #from blueplate.parsing.tsv import create_default_writer
 
 __docformat__ = "restructuredtext"
@@ -184,22 +186,51 @@ def main(argv=None,  # Defaults to sys.argv.
     """
 
     def page_handler(page):
-        global page_count
+        global db_cursor
+        global db
+
+        if 'redirect' in page:
+            synonym_data = {
+                'synonym': page['title'] + ';',
+                'redirect': page['redirect']
+            }
+
+            db_cursor.execute("""
+                    UPDATE articles  
+                    SET synonyms = 
+                        IFNULL(CONCAT(synonyms, %(synonym)s), %(synonym)s)
+                    WHERE title = %(redirect)s
+                    """, synonym_data)
+            print('Number of rows inserted: %d' % db_cursor.rowcount)
+            db.commit()
+            return
+
         """Write the right bits to the right files."""
         #print(page['title'])
         print(page['title'])
         print("page_id :",page['id'])
-        print(page['redirect'])
+#print(page['redirect'])
         print("time :",page['revisions'][-1]['timestamp'])
         text = HTMLParser.HTMLParser().unescape(page['revisions'][-1]['text'])
         text = ''.join(BeautifulSoup(text).findAll(text=True))
         text = WikiExtractor.clean(text)
-        print ''.join(WikiExtractor.compact(text))
-        if page_count == 2:
-            sys.exit(1)
-        else:
-            page_count += 1
-        
+        text = ''.join(WikiExtractor.compact(text))
+        print(text)
+
+        article_data = {
+            'id': page['id'],
+            'title': page['title'],
+            'timestamp': page['revisions'][-1]['timestamp'],
+            'text': text
+        }
+        db_cursor.execute("""
+                INSERT INTO articles(id, title, timestamp, text) 
+                    VALUES (%(id)s, %(title)s, %(timestamp)s, %(text)s)
+                """, article_data)
+
+        print('Number of rows inserted: %d' % db_cursor.rowcount)
+        db.commit()
+
         
 #        try:
 #            atoms_writer.writerow((page['id'], page['title']))
@@ -212,30 +243,19 @@ def main(argv=None,  # Defaults to sys.argv.
 #            print >> sys.stderr, "%s: %s\n%s" % (parser.get_prog_name(),
 #                                                 e, page)
 
-    global parser
-    parser = OptionParser()
-    parser.add_option('--atoms', dest='atoms',
-        help="store atom ids and names in this file",
-        metavar='FILE.tsv')
-    parser.add_option('--user-timestamp-atom-triplets',
-        dest='user_timestamp_atom_triplets',
-        help="store (user, timestamp, atom) triplets in this file",
-        metavar='FILE.tsv')
-    (options, args) = parser.parse_args(args=argv)
-    if args:
-        parser.error("No arguments expected")
-    for required in ('atoms', 'user_timestamp_atom_triplets'):
-        if not getattr(options, required):
-            parser.error('The %s parameter is required' % required)
+    # db connect 
+    global db
+    db = MySQLdb.connect(db='kowikipedia', user='root', passwd='2002!nfo', host='localhost', charset='utf8', use_unicode=True)
 
-    LINE_BUFFERED = 1
-    with closing(_open(options.atoms, 'w', LINE_BUFFERED)) as atoms_file:
-        with closing(_open(options.user_timestamp_atom_triplets,
-                           'w', LINE_BUFFERED)) as triplets_file:
-            #atoms_writer = create_default_writer(atoms_file)
-            #triplets_writer = create_default_writer(triplets_file)
-            parsewpxml(input, page_handler)
+    global db_cursor
+    db_cursor = db.cursor()
 
+    parsewpxml(input, page_handler)
+
+    # db close
+    db_cursor.close()
+#db.commit()
+    db.close()
 
 if __name__ == '__main__':
     main()
