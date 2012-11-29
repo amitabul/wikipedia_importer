@@ -358,7 +358,7 @@ def clean(text):
     text = dropNested(text, r'{{', r'}}')
 
     # Drop tables
-    text = dropNested(text, r'{\|', r'\|}')
+    #text = dropNested(text, r'{\|', r'\|}')
 
     # Drop preformatted
     text = preformatted.sub('', text)
@@ -429,7 +429,7 @@ def clean(text):
     text = dots.sub('...', text)
     text = re.sub(u' (,:\.\)\]쨩)', r'\1', text)
     text = re.sub(u'(\[\(짬) ', r'\1', text)
-    text = re.sub(r'\n\W+?\n', '\n', text) # lines with only punctuations
+    #text = re.sub(r'\n\W+?\n', '\n', text) # lines with only punctuations
     text = text.replace(',,', ',').replace(',.', '.')
     return text
 
