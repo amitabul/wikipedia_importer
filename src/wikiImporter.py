@@ -189,48 +189,53 @@ def main(argv=None,  # Defaults to sys.argv.
         global db_cursor
         global db
 
-        if 'redirect' in page:
-            synonym_data = {
-                'synonym': page['title'] + ';',
-                'redirect': page['redirect']
-            }
 
-            db_cursor.execute("""
-                    UPDATE articles  
-                    SET synonyms = 
-                        IFNULL(CONCAT(synonyms, %(synonym)s), %(synonym)s)
-                    WHERE title = %(redirect)s
-                    """, synonym_data)
-            print('Number of rows inserted: %d' % db_cursor.rowcount)
-            db.commit()
-            return
+        try:
 
-        """Write the right bits to the right files."""
-        #print(page['title'])
-        print(page['title'])
-        print("page_id :",page['id'])
-#print(page['redirect'])
-        print("time :",page['revisions'][-1]['timestamp'])
-        text = HTMLParser.HTMLParser().unescape(page['revisions'][-1]['text'])
-        text = ''.join(BeautifulSoup(text).findAll(text=True))
-        text = WikiExtractor.clean(text)
-        text = ''.join(WikiExtractor.compact(text))
-        print(text)
+                if 'redirect' in page:
+                    synonym_data = {
+                        'synonym': page['title'] + ';',
+                        'redirect': page['redirect']
+                    }
 
-        article_data = {
-            'id': page['id'],
-            'title': page['title'],
-            'timestamp': page['revisions'][-1]['timestamp'],
-            'text': text
-        }
-        db_cursor.execute("""
-                INSERT INTO articles(id, title, timestamp, text) 
-                    VALUES (%(id)s, %(title)s, %(timestamp)s, %(text)s)
-                """, article_data)
+                    db_cursor.execute("""
+                            UPDATE articles  
+                            SET synonyms = 
+                                IFNULL(CONCAT(synonyms, %(synonym)s), %(synonym)s)
+                            WHERE title = %(redirect)s
+                            """, synonym_data)
+                    #print('Number of rows inserted: %d' % db_cursor.rowcount)
+                    db.commit()
+                    return
 
-        print('Number of rows inserted: %d' % db_cursor.rowcount)
-        db.commit()
+                """Write the right bits to the right files."""
+                #print(page['title'])
+                #print(page['title'])
+                #print("page_id :",page['id'])
+        #print(page['redirect'])
+                #print("time :",page['revisions'][-1]['timestamp'])
+                text = HTMLParser.HTMLParser().unescape(page['revisions'][-1]['text'])
+                text = ''.join(BeautifulSoup(text).findAll(text=True))
+                text = WikiExtractor.clean(text)
+                text = ''.join(WikiExtractor.compact(text))
+                #print(text)
 
+                article_data = {
+                    'id': page['id'],
+                    'title': page['title'],
+                    'timestamp': page['revisions'][-1]['timestamp'],
+                    'text': text
+                }
+                print(page['id'])
+                db_cursor.execute("""
+                        INSERT INTO articles(id, title, timestamp, text) 
+                            VALUES (%(id)s, %(title)s, %(timestamp)s, %(text)s)
+                        """, article_data)
+
+                #print('Number of rows inserted: %d' % db_cursor.rowcount)
+                db.commit()
+        except Exception, e:
+            print >> sys.stderr, "invoked error. id : %s, %s" % (page['id'], e)
         
 #        try:
 #            atoms_writer.writerow((page['id'], page['title']))
